@@ -2,42 +2,10 @@ import socket
 import hashlib as hasher
 import datetime
 import sqlite3 as lite
+from Private.Func.add_user_sql import add_user
+from Private.Func.login_user_sql import login_user
 
-
-
-conn = lite.connect("data.db")
-
-def add_user(username, password):
-    cursor = conn.cursor()
-    query = f"INSERT INTO users VALUES(?,?)"
-    cursor.execute(query, (username, password))
-    with open("registers.log", "a+") as registersFile:
-        registersFile.write("Le compte {} a ete creer\n".format(username))
-        client.send(bytes("Le compte {} a ete creer\n".format(username), "utf-8"))
-    conn.commit()
-    
-    
-    cursor.close()
-
-def login_user(username, password):
-    cursor = conn.cursor()
-    query = f"SELECT * FROM users WHERE username = ? AND password = ?"
-    cursor.execute(query, (username, password))
-    if cursor.fetchone():
-        client.send("Connecter sur le compte : {}".format(username).encode("utf-8"))
-        
-        with open("logins.log", "a+") as loginsFile:
-            
-            heure =  datetime.datetime.now().strftime("%Hh:%Mm:%Ss")
-            
-            loginsFile.write("Le compte {} a eter authentifier a {}\n".format(username, heure))
-                
-    else:
-        with open("logins.log", "a+") as loginsFile:
-            heure =  datetime.datetime.now().strftime("%Hh:%Mm:%Ss")   
-            loginsFile.write("Le compte {} a ete refuser a {}\n".format(username, heure))
-            client.send(f"Utilisateur inexistant ou mdp incorrecte sur le compte : {username}".encode("utf-8"))
-        
+conn = lite.connect("Private/Data/data.db")
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(("localhost", 5500))
@@ -45,10 +13,10 @@ server.bind(("localhost", 5500))
 
 while True:
     try:
-        server.listen()
+        server.listen(5)
         client, addr = server.accept()
 
-        with open('connexions.log', "a+") as connFile:
+        with open('Private/Logs/connexions.log', "a+") as connFile:
 
             connFile.write(f"Connexion depuis l'addresse : {addr[0]}:{addr[1]}\n")
         msgData = client.recv(1024).decode("utf-8")
@@ -59,7 +27,7 @@ while True:
 
             new_password = hasher.md5(basic_password.encode("utf-8"))
 
-            add_user(username, new_password.hexdigest())
+            add_user(username, new_password.hexdigest(), client, conn)
 
         if msgData == "login":
             username = client.recv(1024).decode("utf-8")
@@ -70,7 +38,7 @@ while True:
 
             print(new_password.hexdigest())
 
-            login_user(username, new_password.hexdigest())
+            login_user(username, new_password.hexdigest(), client, conn)
 
     except KeyboardInterrupt:
 
